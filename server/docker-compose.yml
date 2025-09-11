@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  node-server-b:
+    build: .
+    container_name: node-server-b
+    ports:
+      - "8001:${PORT}"   # ใช้ env variable
+    depends_on:
+      - db-b
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+
+  db-b:
+    image: mysql/mysql-server:8.0
+    container_name: db-b
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_ROOT_HOST: "%"  # ให้ root login ได้จากทุก host
+    ports:
+      - "3307:3306"
+    platform: linux/arm64/v8
+    volumes:
+      - db_data_b:/var/lib/mysql
+
+  phpmyadmin-b:
+    image: arm64v8/phpmyadmin:latest
+    container_name: phpmyadmin-b
+    environment:
+      PMA_HOST: ${PMA_HOST}
+      PMA_PORT: ${PMA_PORT}
+      PMA_USER: ${PMA_USER}
+      PMA_PASSWORD: ${PMA_PASSWORD}
+    ports:
+      - "8081:80"
+    depends_on:
+      - db-b
+
+volumes:
+  db_data_b:

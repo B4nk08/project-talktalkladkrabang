@@ -1,0 +1,1 @@
+path Register == http://localhost:8001/auth/register
