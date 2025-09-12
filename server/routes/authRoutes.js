@@ -20,4 +20,9 @@ router.post('/verify-otp', [
   body('otpCode').isLength({ min: 4 })
 ], authControllers.verifyOtp);
 
+// Protected route (ต้องมี JWT จริง)
+router.get("/me", requireAuth, (req, res) => {
+  res.json({ message: "โปรไฟล์ของคุณ", user: req.user });
+});
+
 module.exports = router;
