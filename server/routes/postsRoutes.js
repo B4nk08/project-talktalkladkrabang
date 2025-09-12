@@ -1,11 +1,13 @@
 const express = require("express");
 const router = express.Router();
-const { createposttableHandel } = require("../controllers/postControllers");
+const { body } = require("express-validator");
+const postsControllers = require("../controllers/postsControllers");
+const { requireAuth } = require("../middleware/authMiddleware");
 
-//สร้างtable
-router.post("/addtablepost", createposttableHandel);
+// สร้าง table posts
+router.post("/addtablepost", postsControllers.createposttableHandel);
 
-//สร้างpostในกระทู้
+// สร้าง post
 router.post(
   "/",
   requireAuth,
@@ -24,6 +26,5 @@ router.put("/:id", requireAuth, postsControllers.updatePost);
 
 // ลบโพสต์ (soft delete)
 router.delete("/:id", requireAuth, postsControllers.deletePost);
-
 
 module.exports = router;

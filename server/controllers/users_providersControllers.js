@@ -1,7 +1,5 @@
 const bcrypt = require("bcrypt");
-const {
-  createUsers_providersTable,
-} = require("../models/users_providersModels");
+const { createUsers_providersTable } = require("../models/users_providersModels");
 
 async function createUsers_providersTableHandler(req, res) {
   try {

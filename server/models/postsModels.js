@@ -56,4 +56,11 @@ async function softDeletePost(id, deleted_by) {
   );
 }
 
-module.exports = { createposttable, createPost, getPostById, getAllPosts, updatePost, softDeletePost };
+module.exports = {
+  createposttable,
+  createPost,
+  getPostById,
+  getAllPosts,
+  updatePost,
+  softDeletePost,
+};

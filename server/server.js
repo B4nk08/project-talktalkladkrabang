@@ -25,7 +25,7 @@ app.use(
 const userRoutes = require("./routes/usersRotes");
 const users_providersRoutes = require("./routes/users_providersRoutes");
 const refresh_tokensRoutes = require("./routes/refresh_tokensRoutes");
-const postRoutes = require("./routes/postRoutes");
+const postsRoutes = require("./routes/postsRoutes");
 const password_resetsRoutes = require("./routes/password_resetsRoutes");
 const moderation_logsRoutes = require("./routes/moderation_logsRoutes");
 const commentsRoutes = require("./routes/commentsRoutes");
@@ -35,7 +35,7 @@ const authRotes = require("./routes/authRoutes");
 app.use("/users", userRoutes);
 app.use("/users_providers", users_providersRoutes);
 app.use("/retoken", refresh_tokensRoutes);
-app.use("/post", postRoutes);
+app.use("/post", postsRoutes );
 app.use("/password_reset", password_resetsRoutes);
 app.use("/moderation_log", moderation_logsRoutes);
 app.use("/comments", commentsRoutes);
