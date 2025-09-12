@@ -17,4 +17,43 @@ async function createposttable() {
     `);
 }
 
-module.exports = { createposttable };
+async function createPost({ user_id, title, content }) {
+  const [result] = await pool.execute(
+    `INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)`,
+    [user_id, title, content]
+  );
+  return result.insertId;
+}
+
+async function getPostById(id) {
+  const [rows] = await pool.execute(
+    `SELECT * FROM posts WHERE id = ? AND is_deleted = FALSE`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
+async function getAllPosts() {
+  const [rows] = await pool.execute(
+    `SELECT * FROM posts WHERE is_deleted = FALSE ORDER BY created_at DESC`
+  );
+  return rows;
+}
+
+async function updatePost(id, { title, content }) {
+  await pool.execute(
+    `UPDATE posts SET title = ?, content = ? WHERE id = ? AND is_deleted = FALSE`,
+    [title, content, id]
+  );
+}
+
+async function softDeletePost(id, deleted_by) {
+  await pool.execute(
+    `UPDATE posts 
+     SET is_deleted = TRUE, deleted_at = NOW(), deleted_by = ? 
+     WHERE id = ?`,
+    [deleted_by, id]
+  );
+}
+
+module.exports = { createposttable, createPost, getPostById, getAllPosts, updatePost, softDeletePost };
