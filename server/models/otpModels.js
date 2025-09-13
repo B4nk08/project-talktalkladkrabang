@@ -1,60 +1,38 @@
 const pool = require("../config/db");
 
-async function createposttable() {
-  await pool.execute(`
-    CREATE TABLE IF NOT EXISTS posts (
-      id BIGINT PRIMARY KEY AUTO_INCREMENT,
-      user_id BIGINT NOT NULL,
-      title VARCHAR(255),
-      content TEXT NOT NULL,
-      is_deleted BOOLEAN DEFAULT FALSE,
-      deleted_at DATETIME NULL,
-      deleted_by BIGINT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id),
-      FOREIGN KEY (deleted_by) REFERENCES users(id)
-    );
-  `);
+async function createotptable() {
+  await pool.execute(` CREATE TABLE otp_tokens (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  otp_code VARCHAR(10) NOT NULL,
+  purpose ENUM('login','verify_email') DEFAULT 'login', 
+  expires_at DATETIME NOT NULL,
+  used BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+    `);
 }
 
-async function createPost({ user_id, title, content }) {
+async function createOtp({ user_id, otp_code, purpose, expires_at }) {
   const [result] = await pool.execute(
-    `INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)`,
-    [user_id, title, content]
+    `INSERT INTO otp_tokens (user_id, otp_code, purpose, expires_at) VALUES (?, ?, ?, ?)`,
+    [user_id, otp_code, purpose, expires_at]
   );
-  return result.insertId;
+  return { id: result.insertId };
 }
 
-async function getPostById(id) {
+async function findValidOtp({ user_id, otp_code, purpose }) {
   const [rows] = await pool.execute(
-    `SELECT * FROM posts WHERE id = ? AND is_deleted = FALSE`,
-    [id]
+    `SELECT * FROM otp_tokens WHERE user_id = ? AND otp_code = ? AND purpose = ? AND used = 0 AND expires_at > NOW() ORDER BY id DESC LIMIT 1`,
+    [user_id, otp_code, purpose]
   );
-  return rows[0] || null;
+  return rows[0];
 }
 
-async function getAllPosts() {
-  const [rows] = await pool.execute(
-    `SELECT * FROM posts WHERE is_deleted = FALSE ORDER BY created_at DESC`
-  );
-  return rows;
+async function markOtpUsed(id) {
+  await pool.execute(`UPDATE otp_tokens SET used = 1 WHERE id = ?`, [id]);
 }
 
-async function updatePost(id, { title, content }) {
-  await pool.execute(
-    `UPDATE posts SET title = ?, content = ?, updated_at = NOW() WHERE id = ? AND is_deleted = FALSE`,
-    [title, content, id]
-  );
-}
-
-async function softDeletePost(id, deleted_by) {
-  await pool.execute(
-    `UPDATE posts 
-     SET is_deleted = TRUE, deleted_at = NOW(), deleted_by = ? 
-     WHERE id = ?`,
-    [deleted_by, id]
-  );
-}
-
-module.exports = { createposttable, createPost, getPostById, getAllPosts, updatePost, softDeletePost };
+module.exports = { createotptable, createOtp, findValidOtp, markOtpUsed };

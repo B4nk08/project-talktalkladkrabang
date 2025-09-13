@@ -3,6 +3,8 @@ version: '3.8'
 services:
   node-server-b:
     build: .
+    env_file:
+      - .env
     container_name: node-server-b
     ports:
       - "8001:${PORT}"   # ใช้ env variable
