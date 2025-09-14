@@ -40,11 +40,35 @@ async function register(req, res) {
     await otpModels.createOtp({ user_id: id, otp_code: otpCode, purpose: "verify_email", expires_at: expiresAt });
 
     // ส่ง OTP ไป Email
-    await sendMail({
-      to: email,
-      subject: "ยืนยันอีเมลของคุณ",
-      html: `<h2>รหัส OTP</h2><p>${otpCode}</p><p>หมดอายุใน ${Math.floor(OTP_EXPIRY_SECONDS / 60)} นาที</p>`,
-    });
+await sendMail({
+  to: email,
+  subject: "ยืนยันอีเมลของคุณ",
+  html: `
+  <div style="font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#fdf2f8;padding:20px;">
+    <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:10px;padding:24px;box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+      
+      <h2 style="margin:0 0 12px 0;color:#db2777;text-align:center;">รหัส OTP</h2>
+      <p style="margin:0 0 16px 0;color:#444;font-size:14px;text-align:center;">
+        ใช้รหัสนี้เพื่อยืนยันอีเมลของคุณ รหัสจะหมดอายุใน <strong>${Math.floor(
+          OTP_EXPIRY_SECONDS / 60
+        )} นาที</strong>
+      </p>
+      
+      <div style="margin:20px auto;padding:16px;border:1px solid #fbcfe8;border-radius:8px;background:#fdf2f8;max-width:240px;text-align:center;">
+        <span style="font-size:26px;letter-spacing:6px;font-weight:bold;color:#be185d;">
+          ${otpCode}
+        </span>
+      </div>
+      
+      <p style="margin:20px 0 0 0;font-size:12px;color:#a1a1aa;text-align:center;">
+        หากคุณไม่ได้ขอรหัสนี้ กรุณาเพิกเฉยอีเมลนี้
+      </p>
+    </div>
+  </div>
+  `,
+});
+
+
 
     // ส่ง tempToken กลับ
     const tempToken = signAccessToken({ sub: id, otp_purpose: "verify_email", tmp: true }, "10m");
@@ -76,11 +100,32 @@ async function login(req, res) {
     await otpModels.createOtp({ user_id: user.id, otp_code: otpCode, purpose: "login", expires_at: expiresAt });
 
     // ส่ง OTP ไป Email
-    await sendMail({
-      to: user.email,
-      subject: "OTP Login",
-      html: `<h2>รหัส OTP</h2><p>${otpCode}</p>`,
-    });
+await sendMail({
+  to: user.email,
+  subject: "OTP Login",
+  html: `
+  <div style="font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#fdf2f8;padding:20px;">
+    <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:10px;padding:24px;box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+      
+      <h2 style="margin:0 0 12px 0;color:#db2777;text-align:center;">รหัส OTP สำหรับเข้าสู่ระบบ</h2>
+      <p style="margin:0 0 16px 0;color:#444;font-size:14px;text-align:center;">
+        กรุณาใช้รหัสด้านล่างเพื่อล็อกอินเข้าสู่ระบบ
+      </p>
+      
+      <div style="margin:20px auto;padding:16px;border:1px solid #fbcfe8;border-radius:8px;background:#fdf2f8;max-width:240px;text-align:center;">
+        <span style="font-size:26px;letter-spacing:6px;font-weight:bold;color:#be185d;">
+          ${otpCode}
+        </span>
+      </div>
+      
+      <p style="margin:20px 0 0 0;font-size:12px;color:#a1a1aa;text-align:center;">
+        หากคุณไม่ได้ทำการเข้าสู่ระบบ กรุณาเพิกเฉยอีเมลนี้
+      </p>
+    </div>
+  </div>
+  `,
+});
+
 
     // ส่ง tempToken กลับ
     const tempToken = signAccessToken({ sub: user.id, otp_purpose: "login", tmp: true }, "10m");
