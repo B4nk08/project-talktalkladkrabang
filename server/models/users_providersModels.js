@@ -1,16 +1,53 @@
 const pool = require("../config/db");
 
-async function createUsers_providersTable() {
-  await pool.execute(`CREATE TABLE IF NOT EXISTS user_providers (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  user_id BIGINT NOT NULL,
-  provider ENUM('google') NOT NULL,
-  provider_user_id VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_provider_user (provider, provider_user_id),
-  UNIQUE KEY uq_user_provider (user_id, provider),
-  FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-`);
+// สร้าง table
+async function createUserProvidersTable() {
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS user_providers (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      user_id BIGINT NOT NULL,
+      provider ENUM('google') NOT NULL,
+      provider_user_id VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_provider_user (provider, provider_user_id),
+      UNIQUE KEY uq_user_provider (user_id, provider),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
 }
-module.exports = { createUsers_providersTable };
+
+// เพิ่ม provider mapping
+async function addUserProvider(userId, provider, providerUserId) {
+  const [result] = await pool.execute(
+    `INSERT INTO user_providers (user_id, provider, provider_user_id)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE provider_user_id = VALUES(provider_user_id)`,
+    [userId, provider, providerUserId]
+  );
+  return result;
+}
+
+// หา user จาก provider + provider_user_id
+async function findByProvider(provider, providerUserId) {
+  const [rows] = await pool.execute(
+    `SELECT * FROM user_providers WHERE provider = ? AND provider_user_id = ?`,
+    [provider, providerUserId]
+  );
+  return rows[0];
+}
+
+// หา provider ทั้งหมดของ user
+async function findByUserId(userId) {
+  const [rows] = await pool.execute(
+    `SELECT * FROM user_providers WHERE user_id = ?`,
+    [userId]
+  );
+  return rows;
+}
+
+module.exports = {
+  createUserProvidersTable,
+  addUserProvider,
+  findByProvider,
+  findByUserId,
+};

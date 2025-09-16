@@ -10,21 +10,28 @@ const OTP_EXPIRY_SECONDS = parseInt(process.env.OTP_EXPIRY_SECONDS || "300");
 
 function generateOtpCode(length = 6) {
   const digits = "0123456789";
-  return Array.from({ length }, () => digits[Math.floor(Math.random() * digits.length)]).join("");
+  return Array.from(
+    { length },
+    () => digits[Math.floor(Math.random() * digits.length)]
+  ).join("");
 }
 
 async function register(req, res) {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    if (!errors.isEmpty())
+      return res.status(400).json({ errors: errors.array() });
 
     const { email, username, password, passwordConfirm } = req.body;
     if (password !== passwordConfirm) {
-      return res.status(400).json({ message: "password และ passwordConfirm ไม่ตรงกัน" });
+      return res
+        .status(400)
+        .json({ message: "password และ passwordConfirm ไม่ตรงกัน" });
     }
 
     const existing = await usersModels.findUserByEmail(email);
-    if (existing) return res.status(400).json({ message: "อีเมลนี้ถูกใช้งานแล้ว" });
+    if (existing)
+      return res.status(400).json({ message: "อีเมลนี้ถูกใช้งานแล้ว" });
 
     const password_hash = await bcrypt.hash(password, 12);
     const { id } = await usersModels.createUser({
@@ -37,13 +44,18 @@ async function register(req, res) {
     // สร้าง OTP
     const otpCode = generateOtpCode(6);
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
-    await otpModels.createOtp({ user_id: id, otp_code: otpCode, purpose: "verify_email", expires_at: expiresAt });
+    await otpModels.createOtp({
+      user_id: id,
+      otp_code: otpCode,
+      purpose: "verify_email",
+      expires_at: expiresAt,
+    });
 
     // ส่ง OTP ไป Email
-await sendMail({
-  to: email,
-  subject: "ยืนยันอีเมลของคุณ",
-  html: `
+    await sendMail({
+      to: email,
+      subject: "ยืนยันอีเมลของคุณ",
+      html: `
   <div style="font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#fdf2f8;padding:20px;">
     <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:10px;padding:24px;box-shadow:0 2px 6px rgba(0,0,0,0.08);">
       
@@ -66,14 +78,20 @@ await sendMail({
     </div>
   </div>
   `,
-});
-
-
+    });
 
     // ส่ง tempToken กลับ
-    const tempToken = signAccessToken({ sub: id, otp_purpose: "verify_email", tmp: true }, "10m");
+    const tempToken = signAccessToken(
+      { sub: id, otp_purpose: "verify_email", tmp: true },
+      "10m"
+    );
 
-    return res.status(201).json({ message: "สมัครสมาชิกสำเร็จ กรุณายืนยันอีเมลด้วย OTP", tempToken });
+    return res
+      .status(201)
+      .json({
+        message: "สมัครสมาชิกสำเร็จ กรุณายืนยันอีเมลด้วย OTP",
+        tempToken,
+      });
   } catch (err) {
     console.error("Register error:", err);
     return res.status(500).json({ message: "server error" });
@@ -97,13 +115,18 @@ async function login(req, res) {
     // สร้าง OTP
     const otpCode = generateOtpCode(6);
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
-    await otpModels.createOtp({ user_id: user.id, otp_code: otpCode, purpose: "login", expires_at: expiresAt });
+    await otpModels.createOtp({
+      user_id: user.id,
+      otp_code: otpCode,
+      purpose: "login",
+      expires_at: expiresAt,
+    });
 
     // ส่ง OTP ไป Email
-await sendMail({
-  to: user.email,
-  subject: "OTP Login",
-  html: `
+    await sendMail({
+      to: user.email,
+      subject: "OTP Login",
+      html: `
   <div style="font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#fdf2f8;padding:20px;">
     <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:10px;padding:24px;box-shadow:0 2px 6px rgba(0,0,0,0.08);">
       
@@ -124,11 +147,13 @@ await sendMail({
     </div>
   </div>
   `,
-});
-
+    });
 
     // ส่ง tempToken กลับ
-    const tempToken = signAccessToken({ sub: user.id, otp_purpose: "login", tmp: true }, "10m");
+    const tempToken = signAccessToken(
+      { sub: user.id, otp_purpose: "login", tmp: true },
+      "10m"
+    );
 
     return res.json({ message: "OTP ถูกส่งไปยังอีเมลแล้ว", tempToken });
   } catch (err) {
@@ -158,7 +183,8 @@ async function verifyOtp(req, res) {
       purpose: decoded.otp_purpose,
     });
 
-    if (!otpRow) return res.status(400).json({ message: "OTP ไม่ถูกต้องหรือหมดอายุ" });
+    if (!otpRow)
+      return res.status(400).json({ message: "OTP ไม่ถูกต้องหรือหมดอายุ" });
 
     // ใช้แล้ว
     await otpModels.markOtpUsed(otpRow.id);
@@ -174,4 +200,45 @@ async function verifyOtp(req, res) {
   }
 }
 
-module.exports = { register, login, verifyOtp };
+async function loginWithGoogle(req, res) {
+  try {
+    const { providerUserId, email, username } = req.body; // ข้อมูลจาก Google OAuth
+    console.log("kuy")
+
+    // เช็คว่ามี mapping ใน user_providers หรือยัง
+    let providerRow = await users_providersModels.findByProvider(
+      "google",
+      providerUserId
+    );
+    let userId;
+
+    if (providerRow) {
+      // มีแล้ว → ดึง userId
+      userId = providerRow.user_id;
+    } else {
+      // สร้าง user ใหม่ใน users (password_hash = null)
+      const newUser = await usersModels.createUser({
+        username,
+        email,
+        password_hash: null,
+        is_verified: true,
+      });
+
+      // insert mapping ใน user_providers
+      await users_providersModels.addUserProvider(
+        newUser.id,
+        "google",
+        providerUserId
+      );
+      userId = newUser.id;
+    }
+
+    // สร้าง JWT จริง
+    const accessToken = signAccessToken({ sub: userId, role: "user" }, "1h");
+    return res.json({ message: "Login with Google สำเร็จ", accessToken });
+  } catch (err) {
+    console.error("Google Login error:", err);
+    return res.status(500).json({ message: "server error" });
+  }
+}
+module.exports = { register, login, verifyOtp, loginWithGoogle };

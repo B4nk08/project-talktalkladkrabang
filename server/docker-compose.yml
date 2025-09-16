@@ -11,10 +11,12 @@ services:
     depends_on:
       - db-b
     environment:
-      DB_HOST: ${DB_HOST}
+      DB_HOST: db-b
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
+    networks:
+      - talktalk
 
   db-b:
     image: mysql/mysql-server:8.0
@@ -30,6 +32,8 @@ services:
     platform: linux/arm64/v8
     volumes:
       - db_data_b:/var/lib/mysql
+    networks:
+      - talktalk
 
   phpmyadmin-b:
     image: arm64v8/phpmyadmin:latest
@@ -43,6 +47,12 @@ services:
       - "8081:80"
     depends_on:
       - db-b
+    networks:
+      - talktalk
 
 volumes:
   db_data_b:
+
+networks:
+  talktalk:
+    driver: bridge

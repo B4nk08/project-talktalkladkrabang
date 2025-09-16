@@ -8,16 +8,13 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 8000;
 
-// ใช้ bodyParser เพื่อ parse JSON จาก request
 app.use(bodyParser.json());
 
-// เปิด public folder ให้เข้าถึงไฟล์ static เช่น HTML, CSS, JS
 app.use(express.static('public'));
 
-// ตั้งค่า CORS (ตอนนี้อนุญาตทุก origin)
 app.use(
   cors({
-    origin: '*', // สามารถเปลี่ยนเป็น 'http://localhost:3000/' เพื่อจำกัด origin
+    origin: '*', 
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
