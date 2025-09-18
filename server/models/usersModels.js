@@ -18,12 +18,13 @@ async function createUsersTable() {
 }
 
 // ใช้สำหรับสมัครสมาชิกใหม่
-async function createUser({ username, email, password_hash }) {
+async function createUser({ email, username, password_hash, is_email_verified, avatar_url }) {
   const [result] = await pool.execute(
-    `INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)`,
-    [username, email, password_hash]
+    `INSERT INTO users (email, username, password_hash, is_email_verified, avatar_url)
+     VALUES (?, ?, ?, ?, ?)`,
+    [email, username, password_hash, is_email_verified, avatar_url]
   );
-  return { id: result.insertId };
+  return result.insertId; // ✅ คืนเป็นตัวเลขตรง ๆ
 }
 
 // หา user ด้วย email
@@ -48,11 +49,22 @@ async function markVerified(userId) {
   await pool.execute(`UPDATE users SET is_email_verified = TRUE WHERE id = ?`, [userId]);
 }
 
+async function setPassWordHash(userId, password_hash) {
+  await pool.execute(`UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?`,[password_hash, userId])
+}
+
+async function setEmailVerified(userId, is_verified = true) {
+  await pool.execute(`UPDATE users SET is_email_verified = ?, updated_at = NOW() WHERE id = ?`,[is_verified ? 1:0, userId])
+  
+}
+
 module.exports = {
   createUsersTable,
   createUser,
   findUserByEmail,
   findUserById,
   updateLastLogin,
-  markVerified
+  markVerified,
+  setPassWordHash,
+  setEmailVerified
 };

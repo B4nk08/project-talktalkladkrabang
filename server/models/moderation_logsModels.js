@@ -14,4 +14,13 @@ async function creatmoderlogtable() {
     `);
 }
 
-module.exports = { creatmoderlogtable };
+async function createModerationLog({ admin_user_id, target_type, target_id, action, reason = null }) {
+  const [result] = await pool.execute(
+    `INSERT INTO moderation_logs (admin_user_id, target_type, target_id, action, reason, created_at)
+     VALUES (?, ?, ?, ?, ?, NOW())`,
+    [admin_user_id, target_type, target_id, action, reason]
+  );
+  return result.insertId;
+}
+
+module.exports = { creatmoderlogtable, createModerationLog };

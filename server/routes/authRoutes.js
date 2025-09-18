@@ -37,7 +37,20 @@ router.get("/me", requireAuth, (req, res) => {
   res.json({ message: "โปรไฟล์ของคุณ", user: req.user });
 });
 
-router.post("/google-login", authControllers.loginWithGoogle);
-
+// password reset
+router.post(
+  "/password-reset/request",
+  [body("email").isEmail()],
+  authControllers.requestPasswordReset
+);
+router.post(
+  "/password-reset/confirm",
+  [
+    body("email").isEmail(),
+    body("otpCode").exists(),
+    body("newPassword").isLength({ min: 6 }),
+  ],
+  authControllers.confirmPasswordReset
+);
 
 module.exports = router;

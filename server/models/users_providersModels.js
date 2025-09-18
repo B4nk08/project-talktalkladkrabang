@@ -45,9 +45,40 @@ async function findByUserId(userId) {
   return rows;
 }
 
+async function findProvider(provider, provider_user_id) {
+  const [row] = await pool.execute(
+    `SELECT * FROM user_providers WHERE provider = ? AND provider_user_id = ? LIMIT 1`,
+    [provider, provider_user_id]
+  );
+  return row[0] || null;
+}
+
+async function findProviderByUserId(user_id) {
+  const [rows] = await pool.execute(
+    `SELECT * FROM user_providers WHERE user_id = ? LIMIT 1`,
+    [user_id]
+  );
+  return rows[0] || null;
+}
+
+async function createProvider({ user_id, provider, provider_user_id }) {
+  const [result] = await pool.execute(
+    `INSERT INTO user_providers (user_id, provider, provider_user_id, created_at)
+     VALUES (?, ?, ?, NOW())
+     ON DUPLICATE KEY UPDATE user_id = user_id`,
+    [user_id, provider, provider_user_id]
+  );
+  return result;
+}
+
+
+
 module.exports = {
   createUserProvidersTable,
   addUserProvider,
   findByProvider,
   findByUserId,
+  findProvider,
+  findProviderByUserId,
+  createProvider
 };

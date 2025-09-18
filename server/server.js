@@ -30,6 +30,7 @@ const moderation_logsRoutes = require("./routes/moderation_logsRoutes");
 const commentsRoutes = require("./routes/commentsRoutes");
 const otpRoutes = require("./routes/otpRoutes");
 const authRotes = require("./routes/authRoutes");
+const oauthRoutes = require("./routes/oauthRoutes")
 
 app.use("/users", userRoutes);
 app.use("/users_providers", users_providersRoutes);
@@ -40,6 +41,7 @@ app.use("/moderation_log", moderation_logsRoutes);
 app.use("/comments", commentsRoutes);
 app.use("/otp", otpRoutes);
 app.use("/auth", authRotes);
+app.use("/oauth", oauthRoutes);
 
 app.get("/", (req, res) => {
   res.send("test");

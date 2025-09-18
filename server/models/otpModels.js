@@ -35,4 +35,18 @@ async function markOtpUsed(id) {
   await pool.execute(`UPDATE otp_tokens SET used = 1 WHERE id = ?`, [id]);
 }
 
-module.exports = { createotptable, createOtp, findValidOtp, markOtpUsed };
+async function createPasswordReset({ user_id, otp_code, expires_at }) {
+  const [result] = await pool.execute(
+    `INSERT INTO password_resets (user_id, otp_code, expires_at, purpose, created_at) VALUES (?, ?, ?, 'password_reset', NOW())`,
+    [user_id, otp_code, expires_at]
+  );
+  return result.insertId;
+}
+
+module.exports = {
+  createotptable,
+  createOtp,
+  findValidOtp,
+  markOtpUsed,
+  createPasswordReset
+};

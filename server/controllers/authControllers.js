@@ -162,7 +162,6 @@ async function login(req, res) {
   }
 }
 
-// Verify OTP
 async function verifyOtp(req, res) {
   try {
     const { otpCode } = req.body;
@@ -171,74 +170,90 @@ async function verifyOtp(req, res) {
 
     let decoded;
     try {
-      decoded = verifyAccessToken(token);
-    } catch {
-      return res.status(401).json({ message: "temp token invalid" });
+      decoded = require("../utils/jwt").verifyAccessToken(token);
+    } catch (e) {
+      return res.status(401).json({ message: "temp token invalid or expired" });
     }
 
-    const userId = decoded.sub;
-    const otpRow = await otpModels.findValidOtp({
-      user_id: userId,
-      otp_code: otpCode,
-      purpose: decoded.otp_purpose,
-    });
+    const { sub: userId, otp_purpose } = decoded;
+    if (!otp_purpose) return res.status(400).json({ message: "invalid temp token" });
 
-    if (!otpRow)
-      return res.status(400).json({ message: "OTP ไม่ถูกต้องหรือหมดอายุ" });
+    const otpRow = await otpModels.findValidOtp({ user_id: userId, otp_code: otpCode, purpose: otp_purpose });
+    if (!otpRow) return res.status(400).json({ message: "OTP ไม่ถูกต้องหรือหมดอายุ" });
 
-    // ใช้แล้ว
     await otpModels.markOtpUsed(otpRow.id);
     await usersModels.updateLastLogin(userId);
 
-    // สร้าง Access Token จริง
-    const accessToken = signAccessToken({ sub: userId, role: "user" }, "1h");
+    // if purpose is verify_email -> mark user verified
+    if (otp_purpose === "verify_email") {
+      await usersModels.setEmailVerified(userId, true);
+    }
 
-    return res.json({ message: "ยืนยัน OTP สำเร็จ", accessToken });
+    // create access token + refresh token
+    const accessToken = signAccessToken({ sub: userId, role: decoded.role || "user" }, "1h");
+    const refreshTokenPlain = generateRefreshToken();
+    const refreshHash = hashToken(refreshTokenPlain);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    await createRefreshToken({ user_id: userId, token_hash: refreshHash, user_agent: req.headers["user-agent"] || null, ip_address: req.ip, expires_at: expiresAt });
+
+    return res.json({ message: "ยืนยัน OTP สำเร็จ", accessToken, refreshToken: refreshTokenPlain });
   } catch (err) {
     console.error("Verify OTP error:", err);
     return res.status(500).json({ message: "server error" });
   }
 }
 
-async function loginWithGoogle(req, res) {
+// Password reset (request)
+async function requestPasswordReset(req, res) {
   try {
-    const { providerUserId, email, username } = req.body; // ข้อมูลจาก Google OAuth
-    console.log("kuy")
+    const { email } = req.body;
+    const user = await usersModels.findUserByEmail(email);
+    if (!user) return res.status(200).json({ message: "ถ้ามีอีเมลนี้ เราจะส่งลิงก์สำหรับรีเซ็ตรหัสผ่าน" });
 
-    // เช็คว่ามี mapping ใน user_providers หรือยัง
-    let providerRow = await users_providersModels.findByProvider(
-      "google",
-      providerUserId
-    );
-    let userId;
+    const otpCode = generateOtpCode(6);
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
+    await otpModels.createPasswordReset({ user_id: user.id, otp_code: otpCode, expires_at: expiresAt });
 
-    if (providerRow) {
-      // มีแล้ว → ดึง userId
-      userId = providerRow.user_id;
-    } else {
-      // สร้าง user ใหม่ใน users (password_hash = null)
-      const newUser = await usersModels.createUser({
-        username,
-        email,
-        password_hash: null,
-        is_verified: true,
+    try {
+      const resetLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password?email=${encodeURIComponent(email)}`;
+      await sendMail({
+        to: email,
+        subject: "Password reset OTP",
+        html: `<p>รหัสสำหรับรีเซ็ต: <b>${otpCode}</b></p><p>หรือคลิก: <a href="${resetLink}">${resetLink}</a></p>`,
       });
-
-      // insert mapping ใน user_providers
-      await users_providersModels.addUserProvider(
-        newUser.id,
-        "google",
-        providerUserId
-      );
-      userId = newUser.id;
+    } catch (mailErr) {
+      console.error("Send password reset mail error:", mailErr);
     }
 
-    // สร้าง JWT จริง
-    const accessToken = signAccessToken({ sub: userId, role: "user" }, "1h");
-    return res.json({ message: "Login with Google สำเร็จ", accessToken });
+    return res.json({ message: "ถ้าอีเมลนี้มีอยู่ จะได้รับอีเมลสำหรับรีเซ็ต" });
   } catch (err) {
-    console.error("Google Login error:", err);
+    console.error("requestPasswordReset error:", err);
     return res.status(500).json({ message: "server error" });
   }
 }
-module.exports = { register, login, verifyOtp, loginWithGoogle };
+
+// Password reset confirm
+async function confirmPasswordReset(req, res) {
+  try {
+    const { email, otpCode, newPassword } = req.body;
+    const user = await usersModels.findUserByEmail(email);
+    if (!user) return res.status(400).json({ message: "invalid request" });
+
+    const otpRow = await otpModels.findValidOtp({ user_id: user.id, otp_code: otpCode, purpose: "password_reset" });
+    if (!otpRow) return res.status(400).json({ message: "OTP ไม่ถูกต้องหรือหมดอายุ" });
+
+    await otpModels.markOtpUsed(otpRow.id);
+    const password_hash = await bcrypt.hash(newPassword, 12);
+    await usersModels.setPasswordHash(user.id, password_hash);
+
+    return res.json({ message: "รีเซ็ตรหัสผ่านสำเร็จ" });
+  } catch (err) {
+    console.error("confirmPasswordReset error:", err);
+    return res.status(500).json({ message: "server error" });
+  }
+}
+
+
+
+
+module.exports = { register, login, verifyOtp, requestPasswordReset, confirmPasswordReset };
