@@ -22,9 +22,15 @@ router.post(
 
 router.post(
   "/login",
-  [body("email").isEmail(), body("password").exists()],
+  [
+    body("identifier")
+      .notEmpty()
+      .withMessage("กรุณากรอก username หรือ email"),
+    body("password").exists().withMessage("กรุณากรอก password"),
+  ],
   authControllers.login
 );
+
 
 router.post(
   "/verify-otp",
@@ -37,20 +43,6 @@ router.get("/me", requireAuth, (req, res) => {
   res.json({ message: "โปรไฟล์ของคุณ", user: req.user });
 });
 
-// password reset
-router.post(
-  "/password-reset/request",
-  [body("email").isEmail()],
-  authControllers.requestPasswordReset
-);
-router.post(
-  "/password-reset/confirm",
-  [
-    body("email").isEmail(),
-    body("otpCode").exists(),
-    body("newPassword").isLength({ min: 6 }),
-  ],
-  authControllers.confirmPasswordReset
-);
+
 
 module.exports = router;

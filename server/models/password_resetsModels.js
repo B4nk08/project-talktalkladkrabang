@@ -14,4 +14,19 @@ async function creatpassresettable() {
     `);
 }
 
-module.exports = { creatpassresettable };
+// อัปเดตรหัสผ่าน
+async function setPassWordHash(userId, password_hash) {
+  await pool.execute(
+    `UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?`,
+    [password_hash, userId]
+  );
+}
+
+async function setEmailVerified(userId, is_verified = true) {
+  await pool.execute(
+    `UPDATE users SET is_email_verified = ?, updated_at = NOW() WHERE id = ?`,
+    [is_verified ? 1 : 0, userId]
+  );
+}
+
+module.exports = { creatpassresettable, setPassWordHash, setEmailVerified };

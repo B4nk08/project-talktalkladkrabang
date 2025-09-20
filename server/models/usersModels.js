@@ -18,18 +18,42 @@ async function createUsersTable() {
 }
 
 // ใช้สำหรับสมัครสมาชิกใหม่
-async function createUser({ email, username, password_hash, is_email_verified, avatar_url }) {
+async function createUser({
+  email,
+  username,
+  password_hash,
+  is_email_verified = false,
+  avatar_url = null,
+}) {
   const [result] = await pool.execute(
     `INSERT INTO users (email, username, password_hash, is_email_verified, avatar_url)
      VALUES (?, ?, ?, ?, ?)`,
-    [email, username, password_hash, is_email_verified, avatar_url]
+    [
+      email ?? null,
+      username ?? null,
+      password_hash ?? null,
+      is_email_verified ? 1 : 0,
+      avatar_url ?? null,
+    ]
   );
-  return result.insertId; // ✅ คืนเป็นตัวเลขตรง ๆ
+  return { id: result.insertId }; // ✅ return เป็น object
 }
 
-// หา user ด้วย email
+// หา user ด้วย email and username
+async function findUserByEmailOrUsername(identifier) {
+  if (!identifier) throw new Error("identifier is required");
+  const [rows] = await pool.execute(
+    `SELECT * FROM users WHERE email = ? OR username = ? LIMIT 1`,
+    [identifier, identifier]
+  );
+  return rows[0];
+}
+
 async function findUserByEmail(email) {
-  const [rows] = await pool.execute(`SELECT * FROM users WHERE email = ?`, [email]);
+  const [rows] = await pool.execute(
+    `SELECT * FROM users WHERE email = ? LIMIT 1`,
+    [email]
+  );
   return rows[0];
 }
 
@@ -41,30 +65,24 @@ async function findUserById(id) {
 
 // อัปเดต last login
 async function updateLastLogin(userId) {
-  await pool.execute(`UPDATE users SET last_login_at = NOW() WHERE id = ?`, [userId]);
+  await pool.execute(`UPDATE users SET last_login_at = NOW() WHERE id = ?`, [
+    userId,
+  ]);
 }
 
 // ยืนยัน email
 async function markVerified(userId) {
-  await pool.execute(`UPDATE users SET is_email_verified = TRUE WHERE id = ?`, [userId]);
-}
-
-async function setPassWordHash(userId, password_hash) {
-  await pool.execute(`UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?`,[password_hash, userId])
-}
-
-async function setEmailVerified(userId, is_verified = true) {
-  await pool.execute(`UPDATE users SET is_email_verified = ?, updated_at = NOW() WHERE id = ?`,[is_verified ? 1:0, userId])
-  
+  await pool.execute(`UPDATE users SET is_email_verified = TRUE WHERE id = ?`, [
+    userId,
+  ]);
 }
 
 module.exports = {
   createUsersTable,
   createUser,
   findUserByEmail,
+  findUserByEmailOrUsername,
   findUserById,
   updateLastLogin,
   markVerified,
-  setPassWordHash,
-  setEmailVerified
 };
