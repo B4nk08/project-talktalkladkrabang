@@ -2,18 +2,19 @@ const pool = require("../config/db");
 
 async function createUsersTable() {
   await pool.execute(`
-    CREATE TABLE IF NOT EXISTS users (
-      id BIGINT PRIMARY KEY AUTO_INCREMENT,
-      username VARCHAR(255) UNIQUE,
-      email VARCHAR(255) NOT NULL UNIQUE,
-      password_hash VARCHAR(255) COMMENT 'NULL ถ้าลงทะเบียนด้วย Google',
-      role ENUM('user','admin') DEFAULT 'user',
-      is_email_verified BOOLEAN DEFAULT FALSE,
-      avatar_url VARCHAR(255),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      last_login_at DATETIME
-    )
+CREATE TABLE users (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(255) UNIQUE,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) DEFAULT NULL COMMENT 'NULL ถ้าลงทะเบียนด้วย Google',
+  role ENUM('user','admin') DEFAULT 'user',
+  is_email_verified TINYINT(1) DEFAULT 0,
+  avatar_url VARCHAR(255) DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  last_login_at DATETIME DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
   `);
 }
 

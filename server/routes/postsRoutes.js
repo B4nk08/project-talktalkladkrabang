@@ -9,7 +9,7 @@ router.post("/addtablepost", postsControllers.createposttableHandel);
 
 // สร้าง post
 router.post(
-  "/",
+  "/createpost",
   requireAuth,
   [body("content").notEmpty().withMessage("content จำเป็น")],
   postsControllers.createPost

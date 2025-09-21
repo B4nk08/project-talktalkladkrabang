@@ -1,16 +1,37 @@
-// middleware/authMiddleware.js
-const { verifyAccessToken } = require('../utils/jwt');
+const { verifyAccessToken, signAccessToken, hashToken } = require('../utils/jwt');
+const { findRefreshTokenByHash } = require('../models/refresh_tokensModels');
 
-function requireAuth(req, res, next) {
-  const token = (req.header("authorization") || "").replace("Bearer ", "");
-  if (!token) return res.status(401).json({ message: "No token" });
+async function requireAuth(req, res, next) {
+  let token = (req.header("authorization") || "").replace("Bearer ", "");
+
+  if (!token) return res.status(401).json({ message: "No access token" });
 
   try {
+    // ตรวจสอบ access token
     const decoded = verifyAccessToken(token);
-    req.user = decoded; // เก็บ payload ไว้ใช้งาน
-    next();
+    req.user = decoded;
+    return next();
   } catch (err) {
-    return res.status(401).json({ message: "Invalid token" });
+    // ถ้า access token หมดอายุ
+    if (err.name === "TokenExpiredError") {
+      const refreshToken = req.body.refreshToken;
+      if (!refreshToken) return res.status(401).json({ message: "Access token expired. Refresh token required." });
+
+      // hash refresh token แล้วหาใน DB
+      const refreshHash = hashToken(refreshToken);
+      const tokenRow = await findRefreshTokenByHash(refreshHash);
+      if (!tokenRow || tokenRow.revoked_at) return res.status(401).json({ message: "Invalid refresh token" });
+
+      // สร้าง access token ใหม่
+      const newAccessToken = signAccessToken({ sub: tokenRow.user_id, role: "user" }, "1h");
+      req.user = { sub: tokenRow.user_id, role: "user" };
+      
+      // ส่ง access token ใหม่ใน header
+      res.setHeader("x-access-token", newAccessToken);
+      return next();
+    } else {
+      return res.status(401).json({ message: "Invalid token" });
+    }
   }
 }
 

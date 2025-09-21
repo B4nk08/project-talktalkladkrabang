@@ -7,7 +7,7 @@ require("dotenv").config()
 
 
 
-function signAccessToken(payload, expiresIn = "1h") {
+function signAccessToken(payload, expiresIn = "15m") {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
 }
 

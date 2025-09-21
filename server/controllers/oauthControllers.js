@@ -13,38 +13,26 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 async function googleSignIn(req, res) {
   try {
-    const { idToken, credential } = req.body;
-    const token = idToken || credential;
+    const { idToken } = req.body;
+    if (!idToken) return res.status(400).json({ message: "idToken required" });
 
-    if (!token) {
-      return res.status(400).json({ message: "idToken required" });
-    }
-
-    // Verify Google token
     const ticket = await client.verifyIdToken({
-      idToken: token,
+      idToken,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();
     const { sub, email, name, picture } = payload;
 
-    // หา provider ว่ามีอยู่แล้วหรือไม่
-    let provider = await users_providersModels.findProviderByUserId(
-      "google",
-      sub
-    );
+    // หา provider โดยใช้ provider_user_id
+    let provider = await users_providersModels.findByProvider("google", sub);
 
     let user;
     if (provider) {
-      // ถ้ามี provider -> ดึง user
       user = await usersModels.findUserById(provider.user_id);
     } else {
-      // ถ้ายังไม่มี provider
       let existingUser = await usersModels.findUserByEmail(email);
-
       if (!existingUser) {
-        // สร้าง user ใหม่
         const userId = await usersModels.createUser({
           email,
           username: name,
@@ -57,12 +45,7 @@ async function googleSignIn(req, res) {
 
       user = existingUser;
 
-      // ตรวจสอบอีกทีว่ามี provider หรือยัง (เพื่อหลีกเลี่ยง duplicate)
-      const providerExists = await users_providersModels.findProviderByUserId(
-        "google",
-        sub
-      );
-
+      const providerExists = await users_providersModels.findByProvider("google", sub);
       if (!providerExists) {
         await users_providersModels.createProvider({
           user_id: user.id,
@@ -72,18 +55,15 @@ async function googleSignIn(req, res) {
       }
     }
 
-    // สร้าง access token
     const accessToken = signAccessToken({ sub: user.id, role: user.role });
 
-    // สร้าง refresh token
     const refreshToken = generationRefreshToken();
     const hashedToken = hashToken(refreshToken);
 
-    // บันทึก refresh token ลงฐานข้อมูล
     await createRefreshToken({
       user_id: user.id,
       token_hash: hashedToken,
-      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 วัน
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       user_agent: req.headers["user-agent"] || "",
       ip_address: req.ip || "",
     });

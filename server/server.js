@@ -31,6 +31,7 @@ const commentsRoutes = require("./routes/commentsRoutes");
 const otpRoutes = require("./routes/otpRoutes");
 const authRotes = require("./routes/authRoutes");
 const oauthRoutes = require("./routes/oauthRoutes")
+const tokenRoutes = require("./routes/tokenRoutes")
 
 app.use("/users", userRoutes);
 app.use("/users_providers", users_providersRoutes);
@@ -42,6 +43,7 @@ app.use("/comments", commentsRoutes);
 app.use("/otp", otpRoutes);
 app.use("/auth", authRotes);
 app.use("/oauth", oauthRoutes);
+app.use("/toke",tokenRoutes)
 
 app.get("/", (req, res) => {
   res.send("test");

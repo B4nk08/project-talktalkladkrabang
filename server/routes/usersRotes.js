@@ -4,8 +4,6 @@ const { createUsersTableHandler, registerUserHandler } = require("../controllers
 
 //สร้าง table
 router.post("/addtable", createUsersTableHandler);
-//สร้าง register
-router.post("/register", registerUserHandler)
 
 
 module.exports = router;
