@@ -9,7 +9,7 @@ router.post("/addtablecomment", commentsControllers.createcommenttableHandel);
 
 // สร้าง comment
 router.post(
-  "/",
+  "/createcomment",
   requireAuth,
   [body("content").notEmpty().withMessage("content จำเป็น")],
   commentsControllers.createComment

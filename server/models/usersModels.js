@@ -78,6 +78,23 @@ async function markVerified(userId) {
   ]);
 }
 
+// หา user จาก username
+async function findUserByUsername(username) {
+  const [rows] = await pool.query(`SELECT * FROM users WHERE username = ?`, [
+    username,
+  ]);
+  return rows[0];
+}
+
+// อัปเดต username + updated_at
+async function updateUsername(userId, newUsername) {
+  const [result] = await pool.query(
+    `UPDATE users SET username = ? WHERE id = ?`,
+    [newUsername, userId]
+  );
+  return result.affectedRows > 0;
+}
+
 module.exports = {
   createUsersTable,
   createUser,
@@ -86,4 +103,7 @@ module.exports = {
   findUserById,
   updateLastLogin,
   markVerified,
+  findUserByEmail,
+  updateUsername,
+  findUserByUsername,
 };

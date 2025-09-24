@@ -90,7 +90,11 @@ async function requestRegisterOtp(req, res) {
   </div>
   `,
     });
-    return res.json({ message: "OTP ถูกส่งไปยังอีเมล", tempToken });
+    return res.json({
+      status: "success",
+      message: "OTP ถูกส่งไปยังอีเมล",
+      tempToken,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "server error" });
@@ -188,13 +192,13 @@ async function requestOtpLogin(req, res) {
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) return res.status(400).json({ message: "ข้อมูลไม่ถูกต้อง" });
 
-       // สร้าง tempToken สำหรับ login OTP
+    // สร้าง tempToken สำหรับ login OTP
     const tempTokenPayload = {
       otp_purpose: "login",
       sub: user.id, // ระบุ user.id
     };
     const tempToken = signAccessToken(tempTokenPayload, "10m");
-    
+
     const otpCode = generateOtpCode(6);
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
 
@@ -229,7 +233,11 @@ async function requestOtpLogin(req, res) {
       `,
     });
 
-    return res.json({ message: "OTP ถูกส่งไปยังอีเมล", tempToken });
+    return res.json({
+      status: "success",
+      message: "OTP ถูกส่งไปยังอีเมล",
+      tempToken,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "server error" });

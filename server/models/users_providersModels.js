@@ -33,7 +33,7 @@ async function findByProvider(provider, providerUserId) {
     `SELECT * FROM user_providers WHERE provider = ? AND provider_user_id = ?`,
     [provider, providerUserId]
   );
-  return rows[0];
+  return rows.length > 0 ? rows[0] : null;
 }
 
 // หา provider ทั้งหมดของ user
@@ -71,8 +71,6 @@ async function createProvider({ user_id, provider, provider_user_id }) {
   return result;
 }
 
-
-
 module.exports = {
   createUserProvidersTable,
   addUserProvider,
@@ -80,5 +78,5 @@ module.exports = {
   findByUserId,
   findProvider,
   findProviderByUserId,
-  createProvider
+  createProvider,
 };

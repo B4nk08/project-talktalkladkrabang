@@ -23,5 +23,27 @@ function hashToken(token){
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+function verifyAccessTokenMiddleware(req, res, next) {
+  try {
+    const authHeader = req.headers["authorization"];
+    if (!authHeader) {
+      return res.status(401).json({ message: "Authorization header missing" });
+    }
 
-module.exports = { signAccessToken, verifyAccessToken, generationRefreshToken, hashToken };
+    const token = authHeader.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ message: "Token missing" });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded; // แนบข้อมูล user (sub, role ฯลฯ) ไปใน req
+    next();
+  } catch (err) {
+    console.error("JWT verify error:", err.message);
+    return res.status(401).json({ message: "Invalid or expired token" });
+  }
+}
+
+
+
+module.exports = { signAccessToken, verifyAccessToken, generationRefreshToken, hashToken, verifyAccessTokenMiddleware };
