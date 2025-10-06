@@ -44,7 +44,28 @@ async function requestForgotPassword(req, res) {
     await sendMail({
       to: user.email,
       subject: "OTP สำหรับรีเซ็ตรหัสผ่าน",
-      html: `<h2>รหัส OTP สำหรับรีเซ็ตรหัสผ่าน: ${otpCode}</h2>`,
+      html: `<div style="font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#fdf2f8;padding:20px;">
+    <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:10px;padding:24px;box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+      
+      <h2 style="margin:0 0 12px 0;color:#db2777;text-align:center;">รหัส OTP</h2>
+      <p style="margin:0 0 16px 0;color:#444;font-size:14px;text-align:center;">
+        ใช้รหัสนี้เพื่อยืนยันอีเมลของคุณ รหัสจะหมดอายุใน <strong>${Math.floor(
+          OTP_EXPIRY_SECONDS / 60
+        )} นาที</strong>
+      </p>
+      
+      <div style="margin:20px auto;padding:16px;border:1px solid #fbcfe8;border-radius:8px;background:#fdf2f8;max-width:240px;text-align:center;">
+        <span style="font-size:26px;letter-spacing:6px;font-weight:bold;color:#be185d;">
+          ${otpCode}
+        </span>
+      </div>
+      
+      <p style="margin:20px 0 0 0;font-size:12px;color:#a1a1aa;text-align:center;">
+        หากคุณไม่ได้ขอรหัสนี้ กรุณาเพิกเฉยอีเมลนี้
+      </p>
+    </div>
+  </div>
+  `
     });
 
     // สร้าง tempToken สำหรับ verify OTP
