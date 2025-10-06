@@ -13,14 +13,16 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 async function googleSignIn(req, res) {
   try {
-    const { idToken } = req.body;
-    if (!idToken) {
-      return res.status(400).json({ message: "idToken required" });
+    const { idToken, credential } = req.body;
+    const token = idToken || credential;
+    if (!token) {
+      return res
+        .status(400)
+        .json({ message: "idToken (or credential) required" });
     }
 
-    // verify token
     const ticket = await client.verifyIdToken({
-      idToken,
+      idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
@@ -38,8 +40,18 @@ async function googleSignIn(req, res) {
       // เคส: ยังไม่มี provider → เช็คว่ามี user ในระบบด้วย email ไหม
       let existingUser = await usersModels.findUserByEmail(email);
 
+      if (existingUser) {
+        const existingProvider = await users_providersModels.findByUserId(existingUser.id);
+        const hasProvider = existingProvider && existingProvider.length > 0;
+        if (!hasProvider) {
+          return res.status(403).json({
+            message : "คุณlogin ด้วย username/password ไม่สามารถlogin ด้วย google ได้"
+          })
+        }
+      }
+
       if (!existingUser) {
-        const userId = await usersModels.createUser({
+        const { id: userId } = await usersModels.createUser({
           email,
           username: name,
           password_hash: null,
@@ -60,11 +72,13 @@ async function googleSignIn(req, res) {
     }
 
     if (!user || !user.id) {
-      return res.status(500).json({ message: "ไม่สามารถสร้างหรือดึงข้อมูลผู้ใช้ได้" });
+      return res
+        .status(500)
+        .json({ message: "ไม่สามารถสร้างหรือดึงข้อมูลผู้ใช้ได้" });
     }
 
     // สร้าง access + refresh token
-    const accessToken = signAccessToken({ sub: user.id, role: user.role });
+    const accessToken = signAccessToken({ sub: user.id, role: "user" }, "1h");
 
     const refreshToken = generationRefreshToken();
     const hashedToken = hashToken(refreshToken);
@@ -75,6 +89,7 @@ async function googleSignIn(req, res) {
       expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 วัน
       user_agent: req.headers["user-agent"] || "",
       ip_address: req.ip || "",
+      revoked_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     });
 
     res.json({ accessToken, refreshToken, user });

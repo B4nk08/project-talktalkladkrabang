@@ -15,12 +15,12 @@ async function creatpassresettable() {
 }
 
 // อัปเดตรหัสผ่าน
-async function setPassWordHash(userId, password_hash) {
-  await pool.execute(
-    `UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?`,
-    [password_hash, userId]
-  );
+async function setPassWordHash(userId, hash) {
+  const sql = `UPDATE users SET password_hash = ? WHERE id = ?`;
+  await pool.execute(sql, [hash, userId]);
+  return true;
 }
+
 
 async function setEmailVerified(userId, is_verified = true) {
   await pool.execute(

@@ -22,41 +22,39 @@ async function createcommenttableHandel(req, res) {
   }
 }
 
-// สร้าง comment
-async function createComment(req, res) {
-  try {
-    const { post_id, content, parent_comment_id } = req.body;
-    const user_id = req.user.sub;
-
-    if (!content) return res.status(400).json({ message: "content จำเป็น" });
-
-    const commentId = await commentsModels.createComment({
-      post_id,
-      user_id,
-      parent_comment_id: parent_comment_id || null,
-      content,
-    });
-
-    const newComment = await commentsModels.getCommentById(commentId);
-
-    res.status(201).json({ message: "สร้าง comment สำเร็จ", comment: formatComment(newComment) });
-  } catch (err) {
-    console.error("Create comment error:", err);
-    res.status(500).json({ message: "server error" });
-  }
-}
-
-// ดึงคอมเมนต์ของโพสต์
-async function getCommentsByPost(req, res) {
+// --- GET comments by post_id ---
+async function getCommentsByPostId(req, res){
   try {
     const { post_id } = req.params;
-    const comments = await commentsModels.getCommentsByPost(post_id);
-    res.json({ comments: comments.map(formatComment) });
+    if (!post_id) return res.status(400).json({ message: "post_id required" });
+
+    const comments = await commentsModels.getCommentsByPostId(post_id);
+
+    return res.json({ status: "success", comments });
   } catch (err) {
-    console.error("Get comments error:", err);
-    res.status(500).json({ message: "server error" });
+    console.error("getCommentsByPostId error:", err);
+    return res.status(500).json({ message: "server error" });
   }
-}
+};
+
+async function createComment(req, res){
+  try {
+    const { post_id, content } = req.body;
+    const userId = req.user?.sub; // ✅ ใช้ sub ไม่ใช่ id
+
+    if (!post_id || !content || !userId) {
+      return res.status(400).json({ message: "post_id, content และ userId จำเป็น" });
+    }
+
+    await commentsModels.createComment({ post_id, user_id: userId, content });
+
+    return res.json({ status: "success", message: "เพิ่มคอมเมนต์เรียบร้อย" });
+  } catch (err) {
+    console.error("createComment error:", err);
+    return res.status(500).json({ message: "server error" });
+  }
+};
+
 
 // อัปเดต comment
 async function updateComment(req, res) {
@@ -67,7 +65,10 @@ async function updateComment(req, res) {
     await commentsModels.updateComment(id, { content });
     const updatedComment = await commentsModels.getCommentById(id);
 
-    res.json({ message: "อัปเดต comment สำเร็จ", comment: formatComment(updatedComment) });
+    res.json({
+      message: "อัปเดต comment สำเร็จ",
+      comment: formatComment(updatedComment),
+    });
   } catch (err) {
     console.error("Update comment error:", err);
     res.status(500).json({ message: "server error" });
@@ -83,7 +84,10 @@ async function deleteComment(req, res) {
     await commentsModels.softDeleteComment(id, deleted_by);
     const deletedComment = await commentsModels.getCommentById(id);
 
-    res.json({ message: "ลบ comment สำเร็จ", comment: deletedComment ? formatComment(deletedComment) : null });
+    res.json({
+      message: "ลบ comment สำเร็จ",
+      comment: deletedComment ? formatComment(deletedComment) : null,
+    });
   } catch (err) {
     console.error("Delete comment error:", err);
     res.status(500).json({ message: "server error" });
@@ -93,7 +97,7 @@ async function deleteComment(req, res) {
 module.exports = {
   createcommenttableHandel,
   createComment,
-  getCommentsByPost,
+  getCommentsByPostId,
   updateComment,
   deleteComment,
 };

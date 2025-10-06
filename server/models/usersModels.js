@@ -86,14 +86,35 @@ async function findUserByUsername(username) {
   return rows[0];
 }
 
-// อัปเดต username + updated_at
-async function updateUsername(userId, newUsername) {
-  const [result] = await pool.query(
-    `UPDATE users SET username = ? WHERE id = ?`,
-    [newUsername, userId]
+// ดึงข้อมูล user
+async function findUserByIdprofile(id) {
+  if (!id) throw new Error("userId is required"); // id ต้องไม่ undefined
+  const [rows] = await pool.execute(
+    "SELECT id, username, avatar_url FROM users WHERE id = ?",
+    [id]
   );
-  return result.affectedRows > 0;
+  return rows[0] || null;
 }
+
+// อัปเดตรูปโปรไฟล์
+async function updateUserAvatar(id, avatar_url) {
+  if (!id) throw new Error("userId is required");
+  await pool.execute(
+    "UPDATE users SET avatar_url = ? WHERE id = ?",
+    [avatar_url || null, id]
+  );
+}
+
+// อัปเดต username
+async function updateUsername(id, username) {
+  if (!id) throw new Error("userId is required");
+  if (!username) throw new Error("username is required");
+  await pool.execute(
+    "UPDATE users SET username = ? WHERE id = ?",
+    [username, id]
+  );
+}
+
 
 module.exports = {
   createUsersTable,
@@ -106,4 +127,6 @@ module.exports = {
   findUserByEmail,
   updateUsername,
   findUserByUsername,
+  updateUserAvatar,
+  findUserByIdprofile,
 };

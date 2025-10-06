@@ -13,6 +13,7 @@ async function createUsersTableHandler(req, res) {
 
 async function changeUsername(req, res) {
   try {
+    console.log("req.body = ", req.body);
     const userId = req.user.sub; // ได้จาก JWT payload
     const { newUsername } = req.body;
 
@@ -34,6 +35,7 @@ async function changeUsername(req, res) {
     }
 
     return res.json({
+      status : "success",
       message: "เปลี่ยน username สำเร็จ",
       newUsername,
     });

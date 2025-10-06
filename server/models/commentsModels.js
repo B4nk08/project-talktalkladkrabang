@@ -19,21 +19,32 @@ async function creatcommenttable() {
   );`);
 }
 
-async function createComment({ post_id, user_id, parent_comment_id = null, content }) {
-  const [result] = await pool.execute(
-    `INSERT INTO comments (post_id, user_id, parent_comment_id, content)
-     VALUES (?, ?, ?, ?)`,
-    [post_id, user_id, parent_comment_id, content]
+// --- ดึงคอมเมนต์ทั้งหมดของโพสต์ ---
+async function getCommentsByPostId(post_id) {
+  const [rows] = await pool.execute(
+    `SELECT 
+        c.id, 
+        c.content, 
+        c.created_at, 
+        u.username,
+        u.avatar_url
+     FROM comments c
+     JOIN users u ON c.user_id = u.id
+     WHERE c.post_id = ?
+     ORDER BY c.created_at ASC`,
+    [post_id]
   );
-  return result.insertId;
+  return rows;
 }
 
-async function getCommentById(id) {
-  const [rows] = await pool.execute(
-    `SELECT * FROM comments WHERE id = ? AND is_deleted = FALSE`,
-    [id]
+
+// --- เพิ่มคอมเมนต์ใหม่ ---
+async function createComment({ post_id, user_id, content }) {
+  await pool.execute(
+    `INSERT INTO comments (post_id, user_id, content, created_at)
+     VALUES (?, ?, ?, NOW())`,
+    [post_id, user_id, content]
   );
-  return rows[0] || null;
 }
 
 async function getCommentsByPost(post_id) {
@@ -61,7 +72,7 @@ async function softDeleteComment(id, deleted_by) {
 module.exports = {
   creatcommenttable,
   createComment,
-  getCommentById,
+  getCommentsByPostId,
   getCommentsByPost,
   updateComment,
   softDeleteComment,

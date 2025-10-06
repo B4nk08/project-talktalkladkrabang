@@ -2,21 +2,16 @@ const express = require("express");
 const router = express.Router();
 const { body } = require("express-validator");
 const postsControllers = require("../controllers/postsControllers");
-const { requireAuth } = require("../middleware/authMiddleware");
+const { requireAuth, authMiddleware } = require("../middleware/authMiddleware");
 
 // สร้าง table posts
 router.post("/addtablepost", postsControllers.createposttableHandel);
 
 // สร้าง post
-router.post(
-  "/createpost",
-  requireAuth,
-  [body("content").notEmpty().withMessage("content จำเป็น")],
-  postsControllers.createPost
-);
+router.post("/createpost", authMiddleware, postsControllers.createPost);
 
 // ดึงโพสต์ทั้งหมด
-router.get("/", postsControllers.getPosts);
+router.get("/allpost", postsControllers.getPosts);
 
 // ดึงโพสต์เดี่ยว
 router.get("/:id", postsControllers.getPost);

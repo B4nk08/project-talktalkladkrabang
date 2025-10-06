@@ -2,21 +2,17 @@ const express = require("express");
 const router = express.Router();
 const { body } = require("express-validator");
 const commentsControllers = require("../controllers/commentsControllers");
-const { requireAuth } = require("../middleware/authMiddleware");
+const { requireAuth, authMiddleware } = require("../middleware/authMiddleware");
 
 // สร้าง table comments
 router.post("/addtablecomment", commentsControllers.createcommenttableHandel);
 
 // สร้าง comment
-router.post(
-  "/createcomment",
-  requireAuth,
-  [body("content").notEmpty().withMessage("content จำเป็น")],
-  commentsControllers.createComment
-);
+router.post("/createcomment", authMiddleware, commentsControllers.createComment);
+
 
 // ดึงคอมเมนต์ของโพสต์
-router.get("/post/:post_id", commentsControllers.getCommentsByPost);
+router.get("/commentbypostid/:post_id", commentsControllers.getCommentsByPostId);
 
 // อัปเดต comment
 router.put("/:id", requireAuth, commentsControllers.updateComment);

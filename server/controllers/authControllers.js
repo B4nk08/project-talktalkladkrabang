@@ -9,7 +9,11 @@ const {
   hashToken,
 } = require("../utils/jwt");
 const { sendMail } = require("../utils/mailer");
-const { createRefreshToken } = require("../models/refresh_tokensModels");
+const {
+  createRefreshToken,
+  revokeRefreshTokenByHash,
+} = require("../models/refresh_tokensModels");
+const pool = require("../config/db");
 
 require("dotenv").config();
 const OTP_EXPIRY_SECONDS = parseInt(process.env.OTP_EXPIRY_SECONDS || "300");
@@ -50,7 +54,7 @@ async function requestRegisterOtp(req, res) {
 
     // สร้าง tempToken เก็บข้อมูล user ชั่วคราว (email, username, password)
     const tempTokenPayload = {
-      otp_purpose: "register",
+      otp_purpose: "verify_email",
       user_data: { email, username, password },
     };
     const tempToken = signAccessToken(tempTokenPayload, "10m");
@@ -104,6 +108,8 @@ async function requestRegisterOtp(req, res) {
 /* ---------- Verify Register OTP ---------- */
 async function verifyRegisterOtp(req, res) {
   try {
+    console.log("req.body = ", req.body);
+
     const { otpCode } = req.body;
     const token = (req.header("authorization") || "").replace("Bearer ", "");
     if (!token) return res.status(401).json({ message: "temp token required" });
@@ -115,15 +121,22 @@ async function verifyRegisterOtp(req, res) {
       return res.status(401).json({ message: "temp token invalid or expired" });
     }
 
-    if (decoded.otp_purpose !== "register")
+    if (decoded.otp_purpose !== "verify_email")
       return res.status(400).json({ message: "invalid temp token" });
 
     // ดึงข้อมูล user ชั่วคราวจาก meta ของ OTP
+    const user_id = 0;
+    const otp_code = otpCode;
+    const purpose = "verify_email";
+
+    console.log("Verify params:", { user_id, otp_code, purpose });
+
     const otpRow = await otpModels.findValidOtp({
-      user_id: 0,
-      otp_code: otpCode,
-      purpose: "verify_email",
+      user_id, // จาก tempToken
+      otpCode: otp_code, // ต้องตรงชื่อตัวแปร
+      purpose,
     });
+
     if (!otpRow)
       return res.status(400).json({ message: "OTP ไม่ถูกต้องหรือหมดอายุ" });
 
@@ -149,18 +162,26 @@ async function verifyRegisterOtp(req, res) {
     const refreshTokenPlain = generationRefreshToken();
     const refreshHash = hashToken(refreshTokenPlain);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 วัน
+    const revokedAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 วัน
     await createRefreshToken({
       user_id: userId,
       token_hash: refreshHash,
       user_agent: req.headers["user-agent"] || null,
       ip_address: req.ip,
+      revoked_at: revokedAt,
       expires_at: expiresAt,
     });
 
     return res.json({
+      status: "success",
       message: "สมัครสมาชิกสำเร็จ",
       accessToken,
       refreshToken: refreshTokenPlain,
+      user: {
+        id: userId,
+        username,
+        email,
+      },
     });
   } catch (err) {
     console.error(err);
@@ -204,10 +225,11 @@ async function requestOtpLogin(req, res) {
 
     // บันทึก OTP ลง DB
     await otpModels.createOtp({
-      user_id: user.id,
+      user_id: user.id, // login = user.id, register = null
       otp_code: otpCode,
-      purpose: "login",
+      purpose: "login", // หรือ "verify_email"
       expires_at: expiresAt,
+      meta: null,
     });
 
     await sendMail({
@@ -246,48 +268,66 @@ async function requestOtpLogin(req, res) {
 
 async function verifyOtpLogin(req, res) {
   try {
+    console.log("Body received:", req.body);
     const { otpCode } = req.body;
     const token = (req.header("authorization") || "").replace("Bearer ", "");
-    if (!token) return res.status(401).json({ message: "temp token required" });
+
+    if (!token) {
+      return res.status(401).json({ message: "temp token required" });
+    }
 
     const decoded = verifyAccessToken(token);
-    if (decoded.otp_purpose !== "login")
+
+    if (decoded.otp_purpose !== "login") {
       return res.status(400).json({ message: "invalid temp token" });
+    }
+
+    // แก้ตรงนี้: ประกาศตัวแปรให้ถูกต้อง
+    const user_id = decoded.sub;
+    const otp_code = otpCode;
+    const purpose = "login";
+
+    console.log("Verify params:", { user_id, otp_code, purpose });
 
     const otpRow = await otpModels.findValidOtp({
-      otp_code: otpCode,
-      purpose: "login",
-      user_id: decoded.sub,
+      user_id, // จาก tempToken
+      otpCode: otp_code, // ต้องตรงชื่อตัวแปร
+      purpose,
     });
-    if (!otpRow)
+
+    console.log("OTP from DB:", otpRow);
+
+    if (!otpRow) {
       return res.status(400).json({ message: "OTP ไม่ถูกต้องหรือหมดอายุ" });
+    }
 
     await otpModels.markOtpUsed(otpRow.id);
-    await usersModels.updateLastLogin(decoded.sub);
+    await usersModels.updateLastLogin(user_id);
 
-    const accessToken = signAccessToken(
-      { sub: decoded.sub, role: "user" },
-      "1h"
-    );
+    const accessToken = signAccessToken({ sub: user_id, role: "user" }, "1h");
     const refreshTokenPlain = generationRefreshToken();
     const refreshHash = hashToken(refreshTokenPlain);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const revokedAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     await createRefreshToken({
-      user_id: decoded.sub,
+      user_id,
       token_hash: refreshHash,
       user_agent: req.headers["user-agent"] || null,
       ip_address: req.ip,
+      revoked_at: revokedAt,
       expires_at: expiresAt,
     });
 
     return res.json({
+      status: "success",
       message: "เข้าสู่ระบบสำเร็จ",
       accessToken,
       refreshToken: refreshTokenPlain,
+      userId: user_id,
     });
   } catch (err) {
-    console.error(err);
+    console.error("OTP verification failed:", err);
     return res.status(500).json({ message: "server error" });
   }
 }
@@ -323,7 +363,7 @@ async function logoutAll(req, res) {
 
     const decoded = verifyAccessToken(token);
     await pool.execute(
-      "UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = ?",
+      "UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = ? AND revoked_at IS NULL",
       [decoded.sub]
     );
 

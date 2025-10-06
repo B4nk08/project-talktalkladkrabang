@@ -14,20 +14,37 @@ async function createretokentable() {
         );
     `);
 }
-async function createRefreshToken({ user_id, token_hash, user_agent = null, ip_address = null, expires_at }) {
+async function createRefreshToken({
+  user_id,
+  token_hash,
+  user_agent = null,
+  ip_address = null,
+  revoked_at,
+  expires_at,
+}) {
   const [result] = await pool.execute(
-    `INSERT INTO refresh_tokens (user_id, token_hash, user_agent, ip_address, expires_at, created_at) VALUES (?, ?, ?, ?, ?, NOW())`,
-    [user_id, token_hash, user_agent, ip_address, expires_at]
+    `INSERT INTO refresh_tokens (user_id, token_hash, user_agent, ip_address, revoked_at, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+    [user_id, token_hash, user_agent, ip_address,revoked_at, expires_at]
   );
   return result.insertId;
 }
 
 async function revokeRefreshTokenByHash(token_hash) {
-  await pool.execute(`UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = ?`, [token_hash]);
+  await pool.execute(
+    `UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = ?`,
+    [token_hash]
+  );
 }
 
 async function findRefreshTokenByHash(token_hash) {
-  const [rows] = await pool.execute(`SELECT * FROM refresh_tokens WHERE token_hash = ? LIMIT 1`, [token_hash]);
+  const [rows] = await pool.execute(
+    `SELECT * FROM refresh_tokens 
+    WHERE token_hash = ? 
+    AND revoked_at IS NULL 
+    AND expires_at > NOW()
+    LIMIT 1`,
+    [token_hash]
+  );
   return rows[0] || null;
 }
 

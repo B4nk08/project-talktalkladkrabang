@@ -23,24 +23,30 @@ async function createposttableHandel(req, res) {
 // สร้าง post
 async function createPost(req, res) {
   try {
-    const { title, content } = req.body;
-    const userId = req.user.sub;
+    const { content } = req.body;
+    if (!content) {
+      return res.status(400).json({ message: "กรุณาใส่ข้อความก่อนตั้งกระทู้" });
+    }
 
-    if (!content) return res.status(400).json({ message: "content จำเป็น" });
+    // ✅ userId จาก token
+    const userId = req.user?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "คุณยังไม่ได้ login" });
+    }
 
-    const postId = await postsModels.createPost({
-      user_id: userId,
-      title,
-      content,
-    });
+    const postId = await postsModels.createPost({ user_id: userId, content });
     const newPost = await postsModels.getPostById(postId);
 
-    res
-      .status(201)
-      .json({ message: "สร้างโพสต์สำเร็จ", post: formatPost(newPost) });
+    console.log("post :",{userId, content})
+
+    res.status(201).json({
+      status :"success",
+      message: "ตั้งกระทู้สำเร็จ",
+      post: formatPost(newPost),
+    });
   } catch (err) {
     console.error("Create post error:", err);
-    res.status(500).json({ message: "server error" });
+    res.status(500).json({ message: "เกิดข้อผิดพลาดที่ server" });
   }
 }
 
@@ -73,9 +79,9 @@ async function getPost(req, res) {
 async function updatePost(req, res) {
   try {
     const { id } = req.params;
-    const { title, content } = req.body;
+    const { content } = req.body;
 
-    await postsModels.updatePost(id, { title, content });
+    await postsModels.updatePost(id, { content });
     const updatedPost = await postsModels.getPostById(id);
 
     res.json({ message: "อัปเดตโพสต์สำเร็จ", post: formatPost(updatedPost) });
@@ -110,6 +116,5 @@ module.exports = {
   getPosts,
   getPost,
   updatePost,
-  deletePost
+  deletePost,
 };
-
